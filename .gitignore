@@ -1,0 +1,68 @@
+# ----------------------------------
+# Personal / planning artifacts
+# ----------------------------------
+.docs/
+# Original assignment source files (recreated in .docs/ instead)
+2-GearUp.md
+requirments.md
+
+# ----------------------------------
+# Node.js / npm
+# ----------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ----------------------------------
+# Build output
+# ----------------------------------
+dist/
+build/
+*.tsbuildinfo
+
+# ----------------------------------
+# Environment files
+# ----------------------------------
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# ----------------------------------
+# Logs
+# ----------------------------------
+logs/
+*.log
+
+# ----------------------------------
+# IDE / Editor
+# ----------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ----------------------------------
+# Testing / coverage
+# ----------------------------------
+coverage/
+.nyc_output/
+
+# ----------------------------------
+# Prisma
+# ----------------------------------
+# Keep migrations + schema, ignore generated client artifacts in some setups
+# (Adjust per project — Prisma's generated client is usually gitignored)
+prisma/migrations/dev.db*
+
+# ----------------------------------
+# Misc
+# ----------------------------------
+.cache/
+.tmp/
+tmp/

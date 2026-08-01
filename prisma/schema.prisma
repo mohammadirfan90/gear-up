@@ -1,0 +1,285 @@
+// ============================================================
+//  GearUp Backend — Prisma Schema
+//  Database: PostgreSQL
+//  Normalized: 3NF with audit trail
+//  See: docs/PROJECT.md §11 and docs/ARCHITECTURE.md §3
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+//  ENUMS
+// ============================================================
+
+/// User role. Customers and providers self-register; admins are seeded.
+enum Role {
+  customer
+  provider
+  admin
+}
+
+/// User account status. Admins can suspend/activate.
+enum UserStatus {
+  active
+  suspended
+}
+
+/// Rental order lifecycle state machine.
+///   placed → confirmed → paid → picked_up → returned
+///   placed|confirmed|paid → cancelled (by customer or system)
+enum OrderStatus {
+  placed
+  confirmed
+  paid
+  picked_up
+  returned
+  cancelled
+}
+
+/// Payment lifecycle.
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+/// Which payment gateway processed the transaction.
+enum PaymentProvider {
+  stripe
+  sslcommerz
+}
+
+// ============================================================
+//  USER
+//  Authentication + identity. Owns gear (as provider) and rentals (as customer).
+//  soft delete via status='suspended' — never hard-delete users with history.
+// ============================================================
+model User {
+  id           String     @id @default(cuid())
+  name         String     @db.VarChar(100)
+  email        String     @unique @db.VarChar(255)
+  password     String     // bcrypt-hashed; never returned in responses
+  refreshToken String?    // bcrypt-hashed refresh token; null when logged out
+  role         Role
+  status       UserStatus @default(active)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?  // soft delete tombstone (reserved for future use)
+
+  // Relations
+  gearItems        GearItem[]           @relation("ProviderGear")
+  rentalOrders     RentalOrder[]        @relation("CustomerRentals")
+  payments         Payment[]
+  reviews          Review[]
+  statusChanges    RentalStatusHistory[] @relation("StatusChanger")
+
+  // Indexes
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+// ============================================================
+//  CATEGORY
+//  Lookup table for gear taxonomy. Slug is human-readable URL segment.
+// ============================================================
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  gearItems GearItem[]
+
+  @@index([name])
+  @@map("categories")
+}
+
+// ============================================================
+//  GEAR ITEM
+//  A rentable listing. Linked to one provider and one category.
+//  soft delete via isAvailable=false (don't hard-delete — orders reference it).
+// ============================================================
+model GearItem {
+  id             String   @id @default(cuid())
+  name           String   @db.VarChar(200)
+  description    String   @db.Text
+  brand          String   @db.VarChar(100)
+  pricePerDay    Decimal  @db.Decimal(10, 2)
+  stock          Int      @default(0)
+  isAvailable    Boolean  @default(true)
+  images         String[] // array of image URLs
+  specifications Json?    // flexible per-gear specs
+  categoryId     String
+  providerId     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? // soft delete tombstone
+
+  // Relations
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  provider    User         @relation("ProviderGear", fields: [providerId], references: [id], onDelete: Restrict)
+  rentalItems RentalItem[]
+  reviews     Review[]
+
+  // Indexes — optimized for public catalog queries
+  @@index([categoryId])
+  @@index([providerId])
+  @@index([pricePerDay])
+  @@index([isAvailable])
+  @@index([brand])
+  @@index([createdAt])
+  @@map("gear_items")
+}
+
+// ============================================================
+//  RENTAL ORDER
+//  Header record for a rental transaction. Customer-owned.
+//  Line items live in RentalItem (snapshot price at order time).
+// ============================================================
+model RentalOrder {
+  id          String      @id @default(cuid())
+  customerId  String
+  startDate   DateTime    @db.Date
+  endDate     DateTime    @db.Date
+  totalAmount Decimal     @db.Decimal(10, 2)
+  status      OrderStatus @default(placed)
+  notes       String?     @db.VarChar(500)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  customer      User                   @relation("CustomerRentals", fields: [customerId], references: [id], onDelete: Restrict)
+  items         RentalItem[]
+  payments      Payment[]
+  reviews       Review[]
+  statusHistory RentalStatusHistory[]
+
+  // Indexes
+  @@index([customerId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([createdAt])
+  @@map("rental_orders")
+}
+
+// ============================================================
+//  RENTAL ITEM  (line item / junction table with snapshot data)
+//  Captures price + quantity at the moment of order —
+//  immune to later gear price/stock changes.
+// ============================================================
+model RentalItem {
+  id            String  @id @default(cuid())
+  rentalOrderId String
+  gearItemId    String
+  quantity      Int     // units rented
+  pricePerDay   Decimal @db.Decimal(10, 2)  // snapshot of gear price at order time
+  subtotal      Decimal @db.Decimal(10, 2)  // pricePerDay * quantity * days
+
+  // Relations
+  rentalOrder RentalOrder @relation(fields: [rentalOrderId], references: [id], onDelete: Cascade)
+  gearItem    GearItem    @relation(fields: [gearItemId], references: [id], onDelete: Restrict)
+
+  // One line per gear per order (prevent duplicate lines)
+  @@unique([rentalOrderId, gearItemId])
+  @@index([gearItemId])
+  @@map("rental_items")
+}
+
+// ============================================================
+//  PAYMENT
+//  One payment attempt per rental order (most common).
+//  Failed attempts remain as historical records.
+// ============================================================
+model Payment {
+  id            String          @id @default(cuid())
+  rentalOrderId String
+  userId        String          // who paid (the customer)
+  transactionId String          @unique // Stripe PaymentIntent ID
+  amount        Decimal         @db.Decimal(10, 2)
+  currency      String          @default("usd") @db.VarChar(3)
+  method        String?         @db.VarChar(50)   // e.g. "card"
+  provider      PaymentProvider
+  status        PaymentStatus   @default(pending)
+  paidAt        DateTime?
+  failureReason String?         @db.VarChar(500)
+  metadata      Json?           // raw Stripe response / webhook payload
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  rentalOrder RentalOrder @relation(fields: [rentalOrderId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  // Indexes
+  @@index([rentalOrderId])
+  @@index([userId])
+  @@index([status])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+// ============================================================
+//  REVIEW
+//  Customer feedback after a rental is returned.
+//  Unique per rental (one review per order), one-to-one with rental.
+// ============================================================
+model Review {
+  id            String   @id @default(cuid())
+  rentalOrderId String   @unique // enforces one-per-rental at DB level
+  gearItemId    String
+  customerId    String
+  rating        Int      // 1..5 (validated at app layer via Zod)
+  comment       String?  @db.VarChar(1000)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  rentalOrder RentalOrder @relation(fields: [rentalOrderId], references: [id], onDelete: Cascade)
+  gearItem    GearItem    @relation(fields: [gearItemId], references: [id], onDelete: Cascade)
+  customer    User        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  // Indexes — for aggregating ratings per gear
+  @@index([gearItemId])
+  @@index([customerId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("reviews")
+}
+
+// ============================================================
+//  RENTAL STATUS HISTORY  (audit trail)
+//  Immutable log of every status transition.
+//  Append-only — no updates, no deletes.
+// ============================================================
+model RentalStatusHistory {
+  id            String       @id @default(cuid())
+  rentalOrderId String
+  fromStatus    OrderStatus?
+  toStatus      OrderStatus
+  changedById   String       // userId of actor (customer/provider/admin)
+  reason        String?      @db.VarChar(500)
+  changedAt     DateTime     @default(now())
+
+  // Relations
+  rentalOrder RentalOrder @relation(fields: [rentalOrderId], references: [id], onDelete: Cascade)
+  changedBy   User        @relation("StatusChanger", fields: [changedById], references: [id], onDelete: Restrict)
+
+  // Indexes — for chronological order queries
+  @@index([rentalOrderId, changedAt])
+  @@index([changedById])
+  @@map("rental_status_history")
+}

@@ -1,16 +1,6 @@
-/**
- * Auth Module — Zod Validation Schemas
- *
- * All input validation for auth endpoints.
- * Errors are mapped to { success: false, message, errorDetails } via global handler.
- */
-
 import { z } from 'zod';
-import { USER_ROLES } from '../types/auth.types';
+import { USER_ROLES } from './auth.types';
 
-/**
- * POST /api/auth/register
- */
 export const registerSchema = z.object({
   body: z.object({
     name: z
@@ -30,20 +20,12 @@ export const registerSchema = z.object({
       .min(8, 'Password must be at least 8 characters')
       .max(128, 'Password must not exceed 128 characters'),
 
-    role: z.enum(
-      [USER_ROLES[0], USER_ROLES[1]] as [string, ...string[]],
-      {
-        errorMap: () => ({
-          message: 'Role must be either "customer" or "provider"',
-        }),
-      }
-    ),
+    role: z.enum([USER_ROLES[0], USER_ROLES[1]], {
+      errorMap: () => ({ message: 'Role must be either "customer" or "provider"' }),
+    }),
   }),
 });
 
-/**
- * POST /api/auth/login
- */
 export const loginSchema = z.object({
   body: z.object({
     email: z
@@ -57,9 +39,6 @@ export const loginSchema = z.object({
   }),
 });
 
-/**
- * POST /api/auth/refresh
- */
 export const refreshTokenSchema = z.object({
   body: z.object({
     refreshToken: z
@@ -68,14 +47,8 @@ export const refreshTokenSchema = z.object({
   }),
 });
 
-/**
- * GET /api/auth/me — no body, but kept for consistency
- */
 export const getCurrentUserSchema = z.object({});
 
-/**
- * POST /api/auth/logout — no body required
- */
 export const logoutSchema = z.object({});
 
 export type RegisterInput = z.infer<typeof registerSchema>['body'];

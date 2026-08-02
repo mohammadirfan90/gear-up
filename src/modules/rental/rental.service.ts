@@ -201,7 +201,12 @@ export class RentalService {
       if (!ownsGear) {
         throw new ForbiddenError('You can only update orders for your own gear');
       }
-      if (!['confirmed', 'picked_up', 'returned'].includes(targetStatus)) {
+      const providerAllowed: OrderStatus[] = [
+        OrderStatus.CONFIRMED,
+        OrderStatus.PICKED_UP,
+        OrderStatus.RETURNED,
+      ];
+      if (!providerAllowed.includes(targetStatus)) {
         throw new ForbiddenError('Providers cannot perform this transition');
       }
     } else if (userRole === 'customer') {

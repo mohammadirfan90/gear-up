@@ -1,4 +1,4 @@
-import express, { Application, Router } from 'express';
+import express, { Application, Request, Router } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -44,7 +44,18 @@ export const createApp = (): Application => {
       credentials: true,
     }),
   );
-  app.use(express.json({ limit: '1mb' }));
+
+  // Stripe webhook signature verification requires the raw request body.
+  // Capture it on every request so /api/payments/webhook can pass the
+  // untouched bytes to stripe.webhooks.constructEvent.
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req: Request, _res, buf) => {
+        (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+      },
+    }),
+  );
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
   app.use(requestLoggerMiddleware);

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { PaymentService } from './payment.service';
 import { stripeProvider } from './providers/stripe.provider';
 import { ok, created } from '@/shared/utils/api-response';
-import { UnauthorizedError } from '@/shared/errors';
+import { BadRequestError } from '@/shared/errors';
 import {
   CreatePaymentInput,
   ListPaymentsInput,
@@ -45,20 +45,25 @@ export class PaymentController {
 
   /**
    * POST /api/payments/webhook
-   * Uses raw body — must be mounted BEFORE express.json() in app.ts.
+   * Stripe-signed request. Authenticated by signature, not JWT.
+   * rawBody is captured by the JSON `verify` hook in app.ts so the
+   * signature can be verified against the exact bytes Stripe sent.
    */
   webhook = async (req: Request, res: Response): Promise<void> => {
     const signature = req.headers['stripe-signature'];
     if (!signature || Array.isArray(signature)) {
-      throw new UnauthorizedError('Missing Stripe signature');
+      throw new BadRequestError('Missing Stripe signature header');
     }
 
-    const event = stripeProvider.constructWebhookEvent(
-      (req as Request & { rawBody?: Buffer }).rawBody ?? req.body,
-      signature
-    );
+    const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+    if (!rawBody) {
+      throw new BadRequestError('Webhook payload missing');
+    }
+    const event = stripeProvider.constructWebhookEvent(rawBody, signature);
 
-    const result = await this.service.handleWebhook(event as unknown as Parameters<PaymentService['handleWebhook']>[0]);
+    const result = await this.service.handleWebhook(
+      event as unknown as Parameters<PaymentService['handleWebhook']>[0],
+    );
     res.status(200).json({ received: true, ...result });
   };
 }

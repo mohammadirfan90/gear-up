@@ -1,18 +1,8 @@
-/**
- * Auth Module — Repository
- *
- * All Prisma queries for the auth module.
- * The service layer calls this; controllers never touch Prisma directly.
- */
-
 import { PrismaClient, Prisma } from '@prisma/client';
-import { UserRole, UserStatus } from '../types/auth.types';
+import { UserRole, UserStatus } from './auth.types';
 
-/**
- * Type for the Prisma user record excluding password.
- */
 export type SafeUser = Omit<
-  Prisma.UserGetPayload<{}>,
+  Prisma.UserGetPayload<object>,
   'password' | 'refreshToken'
 >;
 
@@ -35,43 +25,53 @@ export interface UserRecord {
   updatedAt: Date;
 }
 
+const userRecordSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  status: true,
+  password: true,
+  refreshToken: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
+
+const safeUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+} satisfies Prisma.UserSelect;
+
 export class AuthRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  /**
-   * Find user by email — includes password for hashing verification.
-   * Should never be returned to clients.
-   */
   async findByEmail(email: string): Promise<UserRecord | null> {
     return this.prisma.user.findUnique({
       where: { email },
+      select: userRecordSelect,
     }) as Promise<UserRecord | null>;
   }
 
-  /**
-   * Find user by id — includes refresh token for validation.
-   */
   async findById(id: string): Promise<UserRecord | null> {
     return this.prisma.user.findUnique({
       where: { id },
+      select: userRecordSelect,
     }) as Promise<UserRecord | null>;
   }
 
-  /**
-   * Find user by id, excluding password & refresh token.
-   * Used for /me endpoint.
-   */
   async findByIdSafe(id: string): Promise<SafeUser | null> {
     return this.prisma.user.findUnique({
       where: { id },
-      omit: { password: true, refreshToken: true },
+      select: safeUserSelect,
     }) as Promise<SafeUser | null>;
   }
 
-  /**
-   * Create a new user.
-   * Throws ConflictError on duplicate email (Prisma P2002).
-   */
   async create(data: CreateUserData): Promise<SafeUser> {
     return this.prisma.user.create({
       data: {
@@ -80,17 +80,13 @@ export class AuthRepository {
         password: data.password,
         role: data.role,
       },
-      omit: { password: true, refreshToken: true },
+      select: safeUserSelect,
     }) as Promise<SafeUser>;
   }
 
-  /**
-   * Store hashed refresh token for a user.
-   * Only one active refresh token per user (latest replaces previous).
-   */
   async updateRefreshToken(
     userId: string,
-    hashedRefreshToken: string | null
+    hashedRefreshToken: string | null,
   ): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
@@ -98,9 +94,6 @@ export class AuthRepository {
     });
   }
 
-  /**
-   * Clear refresh token (used on logout).
-   */
   async clearRefreshToken(userId: string): Promise<void> {
     await this.updateRefreshToken(userId, null);
   }

@@ -43,12 +43,9 @@ export class PaymentController {
     ok(res, 'Payment retrieved', { payment });
   };
 
-  /**
-   * POST /api/payments/webhook
-   * Stripe-signed request. Authenticated by signature, not JWT.
-   * rawBody is captured by the JSON `verify` hook in app.ts so the
-   * signature can be verified against the exact bytes Stripe sent.
-   */
+  // Stripe-signed webhook. JWT is not used here — signature is the auth.
+  // rawBody comes from the JSON `verify` hook in app.ts so the bytes
+  // passed to stripe.webhooks.constructEvent match what Stripe sent.
   webhook = async (req: Request, res: Response): Promise<void> => {
     const signature = req.headers['stripe-signature'];
     if (!signature || Array.isArray(signature)) {

@@ -84,8 +84,8 @@ export class RentalService {
     });
     const totalAmount = computedItems.reduce((sum, i) => sum + i.subtotal, 0);
 
-    // Single transaction: order create + line items + stock decrement + history log.
-    // If any step fails, everything rolls back — stock and order stay consistent.
+    // Atomic: order + line items + stock decrement + initial history log
+    // commit together, so a failure never leaves stock without an order.
     const order = await this.prisma.$transaction(async (tx) => {
       const created = await this.repository.create(
         {

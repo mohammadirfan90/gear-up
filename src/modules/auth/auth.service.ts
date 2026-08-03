@@ -1,11 +1,3 @@
-/**
- * Auth Module — Service
- *
- * Business logic for registration, login, refresh, logout, current user.
- * Throws typed errors (ConflictError, UnauthorizedError, etc.) that the
- * global error handler maps to { success: false, message, errorDetails }.
- */
-
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import {
@@ -23,10 +15,7 @@ import {
   JwtPayload,
   UserStatus,
 } from './auth.types';
-import {
-  LoginInput,
-  RegisterInput,
-} from './auth.validator';
+import { LoginInput, RegisterInput } from './auth.validator';
 
 const BCRYPT_SALT_ROUNDS = 12;
 
@@ -37,9 +26,6 @@ export class AuthService {
     this.repository = new AuthRepository(prisma);
   }
 
-  /**
-   * POST /api/auth/register
-   */
   async register(input: RegisterInput): Promise<AuthResult> {
     const { name, email, password, role } = input;
 
@@ -80,10 +66,7 @@ export class AuthService {
       role: user.role,
     });
 
-    await this.repository.updateRefreshToken(
-      user.id,
-      await hashToken(tokens.refreshToken)
-    );
+    await this.repository.updateRefreshToken(user.id, await hashToken(tokens.refreshToken));
 
     return {
       user: this.toAuthUser(user),
@@ -91,9 +74,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * POST /api/auth/login
-   */
   async login(input: LoginInput): Promise<AuthResult> {
     const { email, password } = input;
 
@@ -104,7 +84,7 @@ export class AuthService {
 
     if (user.status === UserStatus.SUSPENDED) {
       throw new ForbiddenError(
-        'Your account has been suspended. Please contact support.'
+        'Your account has been suspended. Please contact support.',
       );
     }
 
@@ -119,10 +99,7 @@ export class AuthService {
       role: user.role,
     });
 
-    await this.repository.updateRefreshToken(
-      user.id,
-      await hashToken(tokens.refreshToken)
-    );
+    await this.repository.updateRefreshToken(user.id, await hashToken(tokens.refreshToken));
 
     return {
       user: this.toAuthUser(user),
@@ -130,9 +107,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * POST /api/auth/refresh
-   */
   async refresh(refreshToken: string): Promise<AuthTokens> {
     let payload: JwtPayload;
     try {
@@ -165,18 +139,11 @@ export class AuthService {
       role: user.role,
     });
 
-    await this.repository.updateRefreshToken(
-      user.id,
-      await hashToken(tokens.refreshToken)
-    );
+    await this.repository.updateRefreshToken(user.id, await hashToken(tokens.refreshToken));
 
     return tokens;
   }
 
-  /**
-   * POST /api/auth/logout
-   * Stateless: clears stored refresh token so it cannot be reused.
-   */
   async logout(userId: string): Promise<void> {
     const user = await this.repository.findById(userId);
     if (!user) {
@@ -185,9 +152,6 @@ export class AuthService {
     await this.repository.clearRefreshToken(user.id);
   }
 
-  /**
-   * GET /api/auth/me
-   */
   async getCurrentUser(userId: string): Promise<AuthUser> {
     const user = await this.repository.findByIdSafe(userId);
     if (!user) {
@@ -198,10 +162,6 @@ export class AuthService {
     }
     return this.toAuthUser(user);
   }
-
-  // ─────────────────────────────────────────────
-  // Private helpers
-  // ─────────────────────────────────────────────
 
   private toAuthUser(user: UserRecord | AuthUser): AuthUser {
     return {
@@ -216,8 +176,4 @@ export class AuthService {
   }
 }
 
-/**
- * Helper for route handlers — instantiate service with the shared Prisma client.
- */
-export const createAuthService = (prisma: PrismaClient) =>
-  new AuthService(prisma);
+export const createAuthService = (prisma: PrismaClient) => new AuthService(prisma);

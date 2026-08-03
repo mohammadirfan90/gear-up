@@ -45,9 +45,9 @@ export const createApp = (): Application => {
     }),
   );
 
-  // Stripe webhook signature verification requires the raw request body.
-  // Capture it on every request so /api/payments/webhook can pass the
-  // untouched bytes to stripe.webhooks.constructEvent.
+  // Stripe signature verification needs the exact bytes of the request body.
+  // The `verify` hook copies the raw buffer to req.rawBody without changing
+  // how every other route reads parsed JSON.
   app.use(
     express.json({
       limit: '1mb',

@@ -1,24 +1,21 @@
-import { Request, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client";
-import { UnauthorizedError } from "@/shared/errors";
-import { verifyAccessToken } from "@/shared/utils/jwt";
-import { UserStatus } from "./auth.types";
+import { Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { UnauthorizedError } from '@/shared/errors';
+import { verifyAccessToken } from '@/shared/utils/jwt';
+import { UserStatus } from './auth.types';
 
 const extractToken = (req: Request): string | null => {
   const header = req.headers.authorization;
   if (!header) return null;
 
-  const parts = header.split(" ");
-  if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer") {
+  const parts = header.split(' ');
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
     return null;
   }
 
   return parts[1] || null;
 };
 
-/**
- * Middleware factory — accepts Prisma client for user lookup.
- */
 export const createAuthMiddleware = (prisma: PrismaClient) => {
   return async (
     req: Request,
@@ -28,14 +25,14 @@ export const createAuthMiddleware = (prisma: PrismaClient) => {
     try {
       const token = extractToken(req);
       if (!token) {
-        throw new UnauthorizedError("Authentication token is required");
+        throw new UnauthorizedError('Authentication token is required');
       }
 
       let payload;
       try {
         payload = verifyAccessToken(token);
       } catch {
-        throw new UnauthorizedError("Invalid or expired token");
+        throw new UnauthorizedError('Invalid or expired token');
       }
 
       const user = await prisma.user.findUnique({
@@ -49,11 +46,11 @@ export const createAuthMiddleware = (prisma: PrismaClient) => {
       });
 
       if (!user) {
-        throw new UnauthorizedError("User no longer exists");
+        throw new UnauthorizedError('User no longer exists');
       }
 
       if (user.status === UserStatus.SUSPENDED) {
-        throw new UnauthorizedError("Account has been suspended");
+        throw new UnauthorizedError('Account has been suspended');
       }
 
       req.user = {

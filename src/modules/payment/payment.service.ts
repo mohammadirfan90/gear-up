@@ -41,19 +41,17 @@ export class PaymentService {
       );
     }
 
-    // Idempotency: existing pending payment?
     const existing = await this.repository.findPendingByOrderId(order.id);
     if (existing) {
       return this.buildPaymentResult(existing, order.id);
     }
 
-    // Server-side amount recomputation
+    // Amount is always sourced from the DB row — never trust client input.
     const amountCents = Math.round(Number(order.totalAmount) * 100);
     if (amountCents <= 0) {
       throw new ConflictError('Order total must be positive', { amount: 'Invalid total' });
     }
 
-    // Create Stripe PaymentIntent
     const intent = await stripeProvider.createPaymentIntent({
       amount: amountCents,
       currency: 'usd',
@@ -64,7 +62,6 @@ export class PaymentService {
       idempotencyKey: `rental_${order.id}`,
     });
 
-    // Persist pending payment
     const payment = await this.repository.create({
       rentalOrder: { connect: { id: order.id } },
       user: { connect: { id: userId } },
@@ -79,8 +76,10 @@ export class PaymentService {
   }
 
   /**
-   * POST /api/payments/webhook (Stripe → us)
-   * Idempotent per event.id.
+   * POST /api/payments/webhook (Stripe → us).
+   * Idempotent per Stripe event id: terminal-state payments are skipped, and
+   * the payment + rental-order + status-history writes are wrapped in a
+   * single transaction so retries are safe.
    */
   async handleWebhook(event: { id: string; type: string; data: { object: { id: string; metadata?: Record<string, string>; last_payment_error?: { message?: string } } } }) {
     const existing = await this.prisma.payment.findUnique({
@@ -89,7 +88,6 @@ export class PaymentService {
 
     if (!existing) return { skipped: true, reason: 'payment not found' };
 
-    // Already in terminal state — skip
     if (existing.status === 'completed' || existing.status === 'failed' || existing.status === 'refunded') {
       return { skipped: true, reason: `already ${existing.status}` };
     }
@@ -119,7 +117,6 @@ export class PaymentService {
       const payment = await tx.payment.findUnique({ where: { id: paymentId } });
       if (!payment) return;
 
-      // Move rental order to PAID
       await tx.rentalOrder.update({
         where: { id: payment.rentalOrderId },
         data: { status: OrderStatus.PAID },

@@ -1,8 +1,3 @@
-/**
- * Stripe Provider — adapter around the Stripe SDK.
- * The service layer never touches Stripe directly; it uses this module.
- */
-
 import Stripe from 'stripe';
 import { env } from '@/shared/config/env';
 

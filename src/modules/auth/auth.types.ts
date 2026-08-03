@@ -1,10 +1,3 @@
-/**
- * Auth Module — Type Definitions
- *
- * All types and role enums specific to the auth module.
- * Mirrors Prisma enums where applicable.
- */
-
 export const UserRole = {
   CUSTOMER: 'customer',
   PROVIDER: 'provider',
@@ -22,27 +15,18 @@ export const UserStatus = {
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
 
-/**
- * JWT payload carried in both access and refresh tokens.
- */
 export interface JwtPayload {
   id: string;
   email: string;
   role: UserRole;
 }
 
-/**
- * Decoded token shape returned to clients.
- */
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
-  expiresIn: number; // seconds
+  expiresIn: number;
 }
 
-/**
- * Public user shape — never includes password.
- */
 export interface AuthUser {
   id: string;
   name: string;
@@ -53,9 +37,6 @@ export interface AuthUser {
   updatedAt: Date;
 }
 
-/**
- * Result of a successful register/login.
- */
 export interface AuthResult {
   user: AuthUser;
   tokens: AuthTokens;

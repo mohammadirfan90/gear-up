@@ -15,12 +15,11 @@ export const createPaymentRouter = (prisma: PrismaClient): Router => {
   const controller = new PaymentController(prisma);
   const auth = createAuthMiddleware(prisma);
 
-  // Webhook — must be mounted with raw body parser in app.ts.
-  // /confirm is the spec alias (requirments.md); both paths share the same handler.
+  // Webhook: /confirm is the spec alias (requirments.md). Both share the
+  // same Stripe-signature-verified handler.
   router.post('/webhook', controller.webhook);
   router.post('/confirm', controller.webhook);
 
-  // Customer
   router.post(
     '/create',
     auth,
@@ -36,7 +35,6 @@ export const createPaymentRouter = (prisma: PrismaClient): Router => {
     controller.listMine
   );
 
-  // Admin
   router.get(
     '/admin/all',
     auth,
@@ -45,7 +43,6 @@ export const createPaymentRouter = (prisma: PrismaClient): Router => {
     controller.listAdmin
   );
 
-  // Shared
   router.get(
     '/:id',
     auth,

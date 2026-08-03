@@ -57,6 +57,9 @@ export const errorMiddleware = (
   } else if (err.name === 'TokenExpiredError') {
     statusCode = 401;
     message = 'Token expired';
+  } else if (err.name === 'StripeSignatureVerificationError') {
+    statusCode = 400;
+    message = 'Webhook signature verification failed';
   } else if (env.NODE_ENV !== 'production') {
     message = err.message || 'Internal server error';
     errorDetails = { stack: err.stack };

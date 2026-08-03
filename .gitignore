@@ -1,10 +1,16 @@
 # ----------------------------------
-# Personal / planning artifacts
+# Original assignment source files (kept in root, gitignored)
 # ----------------------------------
-.docs/
-# Original assignment source files (recreated in .docs/ instead)
 2-GearUp.md
 requirments.md
+
+# Ignore all documentation and markdown files
+docs/
+*.md
+
+# Ignore local development runner and phase configurations
+manage-phase.ps1
+phases.json
 
 # ----------------------------------
 # Node.js / npm
@@ -59,6 +65,14 @@ coverage/
 # Keep migrations + schema, ignore generated client artifacts in some setups
 # (Adjust per project — Prisma's generated client is usually gitignored)
 prisma/migrations/dev.db*
+
+# ----------------------------------
+# Agent / CLI tooling metadata
+# ----------------------------------
+.puku-cli/
+.puku/
+.gemini/
+.agents/
 
 # ----------------------------------
 # Misc

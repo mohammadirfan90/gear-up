@@ -1,18 +1,4 @@
 # ----------------------------------
-# Original assignment source files (kept in root, gitignored)
-# ----------------------------------
-2-GearUp.md
-requirments.md
-
-# Ignore all documentation and markdown files
-docs/
-*.md
-
-# Ignore local development runner and phase configurations
-manage-phase.ps1
-phases.json
-
-# ----------------------------------
 # Node.js / npm
 # ----------------------------------
 node_modules/
@@ -62,8 +48,6 @@ coverage/
 # ----------------------------------
 # Prisma
 # ----------------------------------
-# Keep migrations + schema, ignore generated client artifacts in some setups
-# (Adjust per project — Prisma's generated client is usually gitignored)
 prisma/migrations/dev.db*
 
 # ----------------------------------

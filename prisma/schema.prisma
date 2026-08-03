@@ -1,9 +1,3 @@
-// ============================================================
-//  GearUp Backend — Prisma Schema
-//  Database: PostgreSQL
-//  Normalized: 3NF with audit trail
-//  See: docs/PROJECT.md §11 and docs/ARCHITECTURE.md §3
-// ============================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -13,10 +7,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ============================================================
-//  ENUMS
-// ============================================================
 
 /// User role. Customers and providers self-register; admins are seeded.
 enum Role {
@@ -31,9 +21,7 @@ enum UserStatus {
   suspended
 }
 
-/// Rental order lifecycle state machine.
-///   placed → confirmed → paid → picked_up → returned
-///   placed|confirmed|paid → cancelled (by customer or system)
+
 enum OrderStatus {
   placed
   confirmed
@@ -43,7 +31,7 @@ enum OrderStatus {
   cancelled
 }
 
-/// Payment lifecycle.
+
 enum PaymentStatus {
   pending
   completed
@@ -51,28 +39,23 @@ enum PaymentStatus {
   refunded
 }
 
-/// Which payment gateway processed the transaction.
 enum PaymentProvider {
   stripe
   sslcommerz
 }
 
-// ============================================================
-//  USER
-//  Authentication + identity. Owns gear (as provider) and rentals (as customer).
-//  soft delete via status='suspended' — never hard-delete users with history.
-// ============================================================
+
 model User {
   id           String     @id @default(cuid())
   name         String     @db.VarChar(100)
   email        String     @unique @db.VarChar(255)
-  password     String     // bcrypt-hashed; never returned in responses
-  refreshToken String?    // bcrypt-hashed refresh token; null when logged out
+  password     String     
+  refreshToken String?    
   role         Role
   status       UserStatus @default(active)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?  // soft delete tombstone (reserved for future use)
+  deletedAt    DateTime?  
 
   // Relations
   gearItems        GearItem[]           @relation("ProviderGear")
@@ -88,10 +71,7 @@ model User {
   @@map("users")
 }
 
-// ============================================================
-//  CATEGORY
-//  Lookup table for gear taxonomy. Slug is human-readable URL segment.
-// ============================================================
+
 model Category {
   id          String   @id @default(cuid())
   name        String   @db.VarChar(100)
@@ -100,18 +80,14 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
+
   gearItems GearItem[]
 
   @@index([name])
   @@map("categories")
 }
 
-// ============================================================
-//  GEAR ITEM
-//  A rentable listing. Linked to one provider and one category.
-//  soft delete via isAvailable=false (don't hard-delete — orders reference it).
-// ============================================================
+
 model GearItem {
   id             String   @id @default(cuid())
   name           String   @db.VarChar(200)
@@ -121,12 +97,12 @@ model GearItem {
   stock          Int      @default(0)
   isAvailable    Boolean  @default(true)
   images         String[] // array of image URLs
-  specifications Json?    // flexible per-gear specs
+  specifications Json?    
   categoryId     String
   providerId     String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  deletedAt      DateTime? // soft delete tombstone
+  deletedAt      DateTime? 
 
   // Relations
   category    Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -134,7 +110,7 @@ model GearItem {
   rentalItems RentalItem[]
   reviews     Review[]
 
-  // Indexes — optimized for public catalog queries
+
   @@index([categoryId])
   @@index([providerId])
   @@index([pricePerDay])
@@ -144,11 +120,7 @@ model GearItem {
   @@map("gear_items")
 }
 
-// ============================================================
-//  RENTAL ORDER
-//  Header record for a rental transaction. Customer-owned.
-//  Line items live in RentalItem (snapshot price at order time).
-// ============================================================
+
 model RentalOrder {
   id          String      @id @default(cuid())
   customerId  String
@@ -175,11 +147,6 @@ model RentalOrder {
   @@map("rental_orders")
 }
 
-// ============================================================
-//  RENTAL ITEM  (line item / junction table with snapshot data)
-//  Captures price + quantity at the moment of order —
-//  immune to later gear price/stock changes.
-// ============================================================
 model RentalItem {
   id            String  @id @default(cuid())
   rentalOrderId String
@@ -198,11 +165,7 @@ model RentalItem {
   @@map("rental_items")
 }
 
-// ============================================================
-//  PAYMENT
-//  One payment attempt per rental order (most common).
-//  Failed attempts remain as historical records.
-// ============================================================
+
 model Payment {
   id            String          @id @default(cuid())
   rentalOrderId String
@@ -232,11 +195,7 @@ model Payment {
   @@map("payments")
 }
 
-// ============================================================
-//  REVIEW
-//  Customer feedback after a rental is returned.
-//  Unique per rental (one review per order), one-to-one with rental.
-// ============================================================
+
 model Review {
   id            String   @id @default(cuid())
   rentalOrderId String   @unique // enforces one-per-rental at DB level
@@ -260,11 +219,7 @@ model Review {
   @@map("reviews")
 }
 
-// ============================================================
-//  RENTAL STATUS HISTORY  (audit trail)
-//  Immutable log of every status transition.
-//  Append-only — no updates, no deletes.
-// ============================================================
+
 model RentalStatusHistory {
   id            String       @id @default(cuid())
   rentalOrderId String

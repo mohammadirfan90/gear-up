@@ -64,3 +64,5 @@ prisma/migrations/dev.db*
 .cache/
 .tmp/
 tmp/
+postman/.postman/
+postman/postman/

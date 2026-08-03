@@ -1,0 +1,1025 @@
+{
+  "info": {
+    "_postman_id": "gearup-collection-001",
+    "name": "GearUp API",
+    "description": "Sports & outdoor equipment rental marketplace backend. Covers authentication, public catalog browsing, customer rental flow, provider inventory management, Stripe payment integration, post-rental reviews, and admin moderation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "customerId", "value": "", "type": "string" },
+    { "key": "providerId", "value": "", "type": "string" },
+    { "key": "adminId", "value": "", "type": "string" },
+    { "key": "categoryId", "value": "", "type": "string" },
+    { "key": "gearItemId", "value": "", "type": "string" },
+    { "key": "rentalOrderId", "value": "", "type": "string" },
+    { "key": "paymentId", "value": "", "type": "string" },
+    { "key": "reviewId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness probe. Returns service uptime and timestamp. No auth required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.tokens && r.data.tokens.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', r.data.tokens.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', r.data.tokens.refreshToken);",
+                  "  pm.collectionVariables.set('customerId', r.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Customer\",\n  \"email\": \"alice.customer@example.com\",\n  \"password\": \"CustomerPass123!\",\n  \"role\": \"customer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new customer. Stores tokens and user id in collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Register Provider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.tokens && r.data.tokens.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', r.data.tokens.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', r.data.tokens.refreshToken);",
+                  "  pm.collectionVariables.set('providerId', r.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bob Outdoor Gear\",\n  \"email\": \"bob.provider@example.com\",\n  \"password\": \"ProviderPass123!\",\n  \"role\": \"provider\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new provider (gear vendor)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.tokens) {",
+                  "  pm.collectionVariables.set('accessToken', r.data.tokens.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', r.data.tokens.refreshToken);",
+                  "  pm.collectionVariables.set('userId', r.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice.customer@example.com\",\n  \"password\": \"CustomerPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticate with email/password and receive access + refresh JWTs. Suspended accounts get 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.tokens) {",
+                  "  pm.collectionVariables.set('accessToken', r.data.tokens.accessToken);",
+                  "  pm.collectionVariables.set('adminId', r.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gearup.com\",\n  \"password\": \"Admin@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticate with the seeded admin credentials from .env.example."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', r.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Exchange a valid refresh token for a fresh access token pair."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns the authenticated user's profile. Suspended accounts get 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Invalidates the current refresh token (server-side revocation). Auth required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories?page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Public listing of all gear categories. No auth required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Category by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{categoryId}}" }
+              ]
+            },
+            "description": "Public lookup of a single category by cuid."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Category (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.id) {",
+                  "  pm.collectionVariables.set('categoryId', r.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Camping\",\n  \"slug\": \"camping\",\n  \"description\": \"Tents, sleeping bags, cookware, and outdoor camping essentials.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"]
+            },
+            "description": "Create a new category. Admin role required. Slug must be unique."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description for the camping category.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{categoryId}}" }
+              ]
+            },
+            "description": "Update a category. Admin role required."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{categoryId}}" }
+              ]
+            },
+            "description": "Delete a category. Admin role required. Refuses if any gear is still linked."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Gear Catalog",
+      "item": [
+        {
+          "name": "List Gear (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gear?page=1&limit=20&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["gear"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "categoryId", "value": "{{categoryId}}", "disabled": true },
+                { "key": "brand", "value": "", "disabled": true },
+                { "key": "priceMin", "value": "", "disabled": true },
+                { "key": "priceMax", "value": "", "disabled": true },
+                { "key": "isAvailable", "value": "true", "disabled": true },
+                { "key": "providerId", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" }
+              ]
+            },
+            "description": "Public gear catalog with filtering, search, and sorting. No auth required. Response includes average rating and review count per item."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Gear by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gear/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["gear", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{gearItemId}}" }
+              ]
+            },
+            "description": "Get full gear details with category, provider, and aggregated ratings."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Create Gear",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.id) {",
+                  "  pm.collectionVariables.set('gearItemId', r.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"4-Person Dome Tent\",\n  \"description\": \"Waterproof family-sized dome tent suitable for 3-season camping. Quick-pitch design.\",\n  \"brand\": \"NorthRidge\",\n  \"pricePerDay\": 24.50,\n  \"stock\": 8,\n  \"isAvailable\": true,\n  \"images\": [\"https://example.com/photos/tent-1.jpg\"],\n  \"specifications\": {\n    \"capacity\": \"4 people\",\n    \"weight_kg\": 3.4,\n    \"seasons\": \"3-season\"\n  },\n  \"categoryId\": \"{{categoryId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "gear"]
+            },
+            "description": "Provider: add a new gear item to your inventory. Stores the new gear id for follow-up calls."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Update Gear",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pricePerDay\": 27.00,\n  \"stock\": 12\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "gear", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{gearItemId}}" }
+              ]
+            },
+            "description": "Provider: partial update of your own gear. Returns 403 if the gear belongs to another provider."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Update Gear (PUT alias)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isAvailable\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "gear", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{gearItemId}}" }
+              ]
+            },
+            "description": "PUT alias for the PATCH update — same controller handler."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Delete Gear",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "gear", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{gearItemId}}" }
+              ]
+            },
+            "description": "Provider: delete your gear. If the gear is referenced by any past order, the API falls back to soft-delete (sets isAvailable=false and stock=0) instead of throwing."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rentals",
+      "item": [
+        {
+          "name": "Create Rental Order (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.id) {",
+                  "  pm.collectionVariables.set('rentalOrderId', r.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2026-08-10\",\n  \"endDate\": \"2026-08-13\",\n  \"items\": [\n    { \"gearItemId\": \"{{gearItemId}}\", \"quantity\": 1 }\n  ],\n  \"notes\": \"Pickup at store front please.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rentals",
+              "host": ["{{baseUrl}}"],
+              "path": ["rentals"]
+            },
+            "description": "Customer creates a new rental order. Performs date validation, self-rental check, stock availability check, and atomic stock decrement in a single transaction."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Rentals (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["rentals"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Customer: list your own rental orders. Optional status filter."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Rental by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["rentals", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{rentalOrderId}}" }
+              ]
+            },
+            "description": "Get a single rental order. Customer sees own, provider sees own-gear orders, admin sees all."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Rental Status (Customer cancel)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\",\n  \"reason\": \"Plans changed.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rentals/:id/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["rentals", ":id", "status"],
+              "variable": [
+                { "key": "id", "value": "{{rentalOrderId}}" }
+              ]
+            },
+            "description": "Customer can cancel their own order if it's still in placed/confirmed/paid status. Restores stock on cancellation."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: List Incoming Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "orders"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Provider: list rental orders that contain at least one of your gear items."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Confirm Order",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "orders", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{rentalOrderId}}" }
+              ]
+            },
+            "description": "Provider: confirm an incoming order. Transition: placed → confirmed."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Mark Picked Up",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"picked_up\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "orders", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{rentalOrderId}}" }
+              ]
+            },
+            "description": "Provider: mark gear as picked up. Transition: paid → picked_up."
+          },
+          "response": []
+        },
+        {
+          "name": "Provider: Mark Returned",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"returned\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "orders", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{rentalOrderId}}" }
+              ]
+            },
+            "description": "Provider: mark gear as returned. Terminal state — order is now reviewable."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: List All Rentals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/rentals?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "rentals"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Admin: list every rental order across the platform."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments (Stripe)",
+      "item": [
+        {
+          "name": "Create Payment Intent (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.paymentId) {",
+                  "  pm.collectionVariables.set('paymentId', r.data.paymentId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rentalOrderId\": \"{{rentalOrderId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "create"]
+            },
+            "description": "Create a Stripe PaymentIntent for a rental order. Recomputes amount server-side; idempotent (returns existing pending payment on repeat calls). Returns clientSecret for the frontend to confirm the card."
+          },
+          "response": []
+        },
+        {
+          "name": "Webhook (Stripe → server)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "stripe-signature", "value": "{{stripeSignature}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_001\",\n  \"object\": \"event\",\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{stripePaymentIntentId}}\",\n      \"metadata\": { \"rentalOrderId\": \"{{rentalOrderId}}\" }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/webhook",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "webhook"]
+            },
+            "description": "Stripe-signed webhook. Authenticated by signature, not JWT. To test locally: run `stripe listen --forward-to localhost:4000/api/payments/webhook` and copy the resulting signing secret into STRIPE_WEBHOOK_SECRET. The `stripe-signature` header must be generated by Stripe (or via `stripe trigger payment_intent.succeeded`)."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Payments (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Customer: list your payment history."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{paymentId}}" }
+              ]
+            },
+            "description": "Get a single payment record. Customers see only their own; admin sees all."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: List All Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/admin/all?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "admin", "all"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Admin: list every payment across the platform."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Create Review (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.id) {",
+                  "  pm.collectionVariables.set('reviewId', r.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rentalOrderId\": \"{{rentalOrderId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excellent gear, fast pickup, and fair pricing. Will rent again!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews"]
+            },
+            "description": "Customer creates a review for a returned rental. Returns 400 if the order isn't in 'returned' status, 409 if already reviewed."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reviews for Gear (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/gear/:gearItemId?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews", "gear", ":gearItemId"],
+              "variable": [
+                { "key": "gearItemId", "value": "{{gearItemId}}" }
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Public: paginated list of reviews for a gear item, plus average rating aggregate."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{reviewId}}" }
+              ]
+            },
+            "description": "Public: get a single review by id."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "role", "value": "", "disabled": true },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Admin: list users with optional role/status/search filters."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Admin: get a single user profile (no credentials exposed)."
+          },
+          "response": []
+        },
+        {
+          "name": "Suspend User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\",\n  \"reason\": \"Multiple late returns.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", ":id", "status"],
+              "variable": [
+                { "key": "id", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Admin: suspend an account. Suspended users get 403 on login and 401 on subsequent API calls. Admin accounts are immutable."
+          },
+          "response": []
+        },
+        {
+          "name": "Reactivate User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", ":id", "status"],
+              "variable": [
+                { "key": "id", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Admin: reactivate a previously suspended account."
+          },
+          "response": []
+        },
+        {
+          "name": "Suspend User (spec alias PATCH /:id)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\",\n  \"reason\": \"Policy violation.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Spec alias: PATCH /api/admin/users/:id mirrors PATCH /api/admin/users/:id/status."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Gear",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/gear?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "gear"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "isAvailable", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Admin: list every gear listing on the platform with availability filter."
+          },
+          "response": []
+        },
+        {
+          "name": "Platform Stats Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "stats"]
+            },
+            "description": "Admin: aggregated platform dashboard — users (total, customers, providers, suspended), gear (total/available), categories, orders (total/active/byStatus), revenue (completed/pending/last-30-days), reviews (count/avg rating), and top customers by total spend."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

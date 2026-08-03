@@ -13,8 +13,12 @@ import { logger } from '@/shared/utils/logger';
 
 import { createAuthRouter } from '@/modules/auth';
 import { createCategoryRouter } from '@/modules/category';
-import { createGearRouter } from '@/modules/gear';
-import { createRentalRouter } from '@/modules/rental';
+import { createGearRouter, createProviderGearRouter } from '@/modules/gear';
+import {
+  createRentalRouter,
+  createProviderOrderRouter,
+  createAdminRentalRouter,
+} from '@/modules/rental';
 import { createPaymentRouter } from '@/modules/payment';
 import { createReviewRouter } from '@/modules/review';
 import { createAdminRouter } from '@/modules/admin';
@@ -57,7 +61,10 @@ export const createApp = (): Application => {
     { path: `${API_PREFIX}/auth`, router: createAuthRouter(prisma) },
     { path: `${API_PREFIX}/categories`, router: createCategoryRouter(prisma) },
     { path: `${API_PREFIX}/gear`, router: createGearRouter(prisma) },
+    { path: `${API_PREFIX}/provider/gear`, router: createProviderGearRouter(prisma) },
     { path: `${API_PREFIX}/rentals`, router: createRentalRouter(prisma) },
+    { path: `${API_PREFIX}/provider/orders`, router: createProviderOrderRouter(prisma) },
+    { path: `${API_PREFIX}/admin/rentals`, router: createAdminRentalRouter(prisma) },
     { path: `${API_PREFIX}/payments`, router: createPaymentRouter(prisma) },
     { path: `${API_PREFIX}/reviews`, router: createReviewRouter(prisma) },
     { path: `${API_PREFIX}/admin`, router: createAdminRouter(prisma) },

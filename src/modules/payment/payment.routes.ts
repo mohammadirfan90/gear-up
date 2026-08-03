@@ -15,8 +15,10 @@ export const createPaymentRouter = (prisma: PrismaClient): Router => {
   const controller = new PaymentController(prisma);
   const auth = createAuthMiddleware(prisma);
 
-  // Webhook — must be mounted with raw body parser in app.ts
+  // Webhook — must be mounted with raw body parser in app.ts.
+  // /confirm is the spec alias (requirments.md); both paths share the same handler.
   router.post('/webhook', controller.webhook);
+  router.post('/confirm', controller.webhook);
 
   // Customer
   router.post(

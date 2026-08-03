@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 // Public-safe projection — never returns password/refreshToken.
 const safeUserSelect = {
@@ -90,19 +90,80 @@ export class AdminRepository {
   }
 
   async getStats() {
-    const [users, customers, providers, suspended, gear, orders, payments] = await Promise.all([
+    const [
+      users,
+      customers,
+      providers,
+      suspended,
+      totalGear,
+      availableGear,
+      totalCategories,
+      totalOrders,
+      activeRentals,
+      ordersByStatus,
+      completedPayments,
+      pendingPayments,
+      recentPayments,
+      totalReviews,
+      averageRating,
+      topRevenue,
+    ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { role: 'customer' } }),
       this.prisma.user.count({ where: { role: 'provider' } }),
       this.prisma.user.count({ where: { status: 'suspended' } }),
       this.prisma.gearItem.count(),
+      this.prisma.gearItem.count({ where: { isAvailable: true } }),
+      this.prisma.category.count(),
       this.prisma.rentalOrder.count(),
+      this.prisma.rentalOrder.count({ where: { status: { notIn: ['returned', 'cancelled'] } } }),
+      this.prisma.rentalOrder.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      }),
       this.prisma.payment.aggregate({
         where: { status: 'completed' },
         _sum: { amount: true },
-        _count: true,
+        _count: { _all: true },
+        _avg: { amount: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: { status: 'pending' },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          status: 'completed',
+          paidAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      this.prisma.review.count(),
+      this.prisma.review.aggregate({ _avg: { rating: true } }),
+      this.prisma.payment.groupBy({
+        by: ['userId'],
+        where: { status: 'completed' },
+        _sum: { amount: true },
+        orderBy: { _sum: { amount: 'desc' } },
+        take: 5,
       }),
     ]);
+
+    const orderStatusCounts: Record<string, number> = {};
+    for (const row of ordersByStatus) {
+      orderStatusCounts[row.status] = row._count._all;
+    }
+
+    const topProviderIds = topRevenue.map((row) => row.userId);
+    const topProviders = topProviderIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: topProviderIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+    const providerById = new Map(topProviders.map((p) => [p.id, p]));
 
     return {
       users: {
@@ -111,12 +172,39 @@ export class AdminRepository {
         providers,
         suspended,
       },
-      gear: { total: gear },
-      orders: { total: orders },
-      payments: {
-        completedCount: payments._count,
-        completedTotal: Number(payments._sum.amount ?? 0),
+      gear: {
+        total: totalGear,
+        available: availableGear,
+        unavailable: totalGear - availableGear,
       },
+      categories: {
+        total: totalCategories,
+      },
+      orders: {
+        total: totalOrders,
+        active: activeRentals,
+        byStatus: orderStatusCounts,
+      },
+      revenue: {
+        completedTotal: Number(completedPayments._sum.amount ?? 0),
+        completedCount: completedPayments._count._all,
+        completedAverage: Number(completedPayments._avg.amount ?? 0),
+        pendingTotal: Number(pendingPayments._sum.amount ?? 0),
+        pendingCount: pendingPayments._count._all,
+        last30DaysTotal: Number(recentPayments._sum.amount ?? 0),
+        last30DaysCount: recentPayments._count._all,
+      },
+      reviews: {
+        total: totalReviews,
+        averageRating: averageRating._avg.rating
+          ? Number(Number(averageRating._avg.rating).toFixed(2))
+          : 0,
+      },
+      topCustomers: topRevenue.map((row) => ({
+        user: providerById.get(row.userId) ?? { id: row.userId, name: null, email: null },
+        totalSpent: Number(row._sum.amount ?? 0),
+      })),
+      generatedAt: new Date().toISOString(),
     };
   }
 }

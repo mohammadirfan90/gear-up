@@ -37,7 +37,7 @@ export const stripeProvider = {
         amount: input.amount,
         currency: input.currency,
         metadata: input.metadata,
-        automatic_payment_methods: { enabled: true },
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       },
       { idempotencyKey: input.idempotencyKey }
     );

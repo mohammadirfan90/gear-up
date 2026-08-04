@@ -7,34 +7,51 @@ dotenv.config();
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.ADMIN_EMAIL || 'admin@gearup.com';
-  const password = process.env.ADMIN_PASSWORD || 'Admin@12345';
-  const name = process.env.ADMIN_NAME || 'GearUp Administrator';
-
-  console.log('Seeding admin user...');
-
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (existingAdmin) {
-    console.log(`Admin user with email ${email} already exists.`);
-    return;
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const admin = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
+  const users = [
+    {
+      name: process.env.ADMIN_NAME || 'GearUp Administrator',
+      email: process.env.ADMIN_EMAIL || 'admin@gearup.com',
+      password: process.env.ADMIN_PASSWORD || 'Admin@12345',
       role: Role.admin,
-      status: UserStatus.active,
     },
-  });
+    {
+      name: 'GearUp Customer',
+      email: 'customer@gearup.com',
+      password: 'Customer@12345',
+      role: Role.customer,
+    },
+    {
+      name: 'GearUp Provider',
+      email: 'provider@gearup.com',
+      password: 'Provider@12345',
+      role: Role.provider,
+    },
+  ];
 
-  console.log(`Admin user created successfully with ID: ${admin.id}`);
+  console.log('Seeding users...');
+
+  for (const u of users) {
+    const hashedPassword = await bcrypt.hash(u.password, 10);
+
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        password: hashedPassword,
+        name: u.name,
+        role: u.role,
+        status: UserStatus.active,
+      },
+      create: {
+        name: u.name,
+        email: u.email,
+        password: hashedPassword,
+        role: u.role,
+        status: UserStatus.active,
+      },
+    });
+
+    console.log(`User seeded: ${user.email} (${user.role}) - ID: ${user.id}`);
+  }
 }
 
 main()

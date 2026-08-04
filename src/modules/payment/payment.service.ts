@@ -105,33 +105,38 @@ export class PaymentService {
   }
 
   private async markPaymentCompleted(paymentId: string, transactionId: string) {
-    await this.prisma.$transaction(async tx => {
-      await tx.payment.update({
-        where: { id: paymentId },
-        data: {
-          status: 'completed',
-          paidAt: new Date(),
-        },
-      });
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.payment.update({
+          where: { id: paymentId },
+          data: {
+            status: 'completed',
+            paidAt: new Date(),
+          },
+        });
 
-      const payment = await tx.payment.findUnique({ where: { id: paymentId } });
-      if (!payment) return;
+        const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+        if (!payment) return;
 
-      await tx.rentalOrder.update({
-        where: { id: payment.rentalOrderId },
-        data: { status: OrderStatus.PAID },
-      });
+        await tx.rentalOrder.update({
+          where: { id: payment.rentalOrderId },
+          data: { status: OrderStatus.PAID },
+        });
 
-      await tx.rentalStatusHistory.create({
-        data: {
-          rentalOrderId: payment.rentalOrderId,
-          fromStatus: OrderStatus.CONFIRMED,
-          toStatus: OrderStatus.PAID,
-          changedById: payment.userId,
-          reason: `Payment ${transactionId} succeeded`,
-        },
-      });
-    });
+        await tx.rentalStatusHistory.create({
+          data: {
+            rentalOrderId: payment.rentalOrderId,
+            fromStatus: OrderStatus.CONFIRMED,
+            toStatus: OrderStatus.PAID,
+            changedById: payment.userId,
+            reason: `Payment ${transactionId} succeeded`,
+          },
+        });
+      },
+      {
+        timeout: 20000,
+      },
+    );
   }
 
   async listForUser(userId: string, params: ListPaymentsInput) {

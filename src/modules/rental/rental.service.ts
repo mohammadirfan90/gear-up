@@ -86,44 +86,49 @@ export class RentalService {
 
     // Atomic: order + line items + stock decrement + initial history log
     // commit together, so a failure never leaves stock without an order.
-    const order = await this.prisma.$transaction(async (tx) => {
-      const created = await this.repository.create(
-        {
-          customer: { connect: { id: customerId } },
-          startDate: input.startDate,
-          endDate: input.endDate,
-          totalAmount,
-          status: OrderStatus.PLACED,
-          notes: input.notes,
-          items: {
-            create: computedItems.map((i) => ({
-              gearItem: { connect: { id: i.gearItemId } },
-              quantity: i.quantity,
-              pricePerDay: i.pricePerDay,
-              subtotal: i.subtotal,
-            })),
+    const order = await this.prisma.$transaction(
+      async (tx) => {
+        const created = await this.repository.create(
+          {
+            customer: { connect: { id: customerId } },
+            startDate: input.startDate,
+            endDate: input.endDate,
+            totalAmount,
+            status: OrderStatus.PLACED,
+            notes: input.notes,
+            items: {
+              create: computedItems.map((i) => ({
+                gearItem: { connect: { id: i.gearItemId } },
+                quantity: i.quantity,
+                pricePerDay: i.pricePerDay,
+                subtotal: i.subtotal,
+              })),
+            },
           },
-        },
-        tx,
-      );
+          tx,
+        );
 
-      await this.repository.decrementStock(
-        computedItems.map((i) => ({ gearItemId: i.gearItemId, quantity: i.quantity })),
-        tx,
-      );
+        await this.repository.decrementStock(
+          computedItems.map((i) => ({ gearItemId: i.gearItemId, quantity: i.quantity })),
+          tx,
+        );
 
-      await this.repository.writeStatusHistory(
-        {
-          rentalOrderId: created.id,
-          fromStatus: null,
-          toStatus: OrderStatus.PLACED,
-          changedById: customerId,
-        },
-        tx,
-      );
+        await this.repository.writeStatusHistory(
+          {
+            rentalOrderId: created.id,
+            fromStatus: null,
+            toStatus: OrderStatus.PLACED,
+            changedById: customerId,
+          },
+          tx,
+        );
 
-      return created;
-    });
+        return created;
+      },
+      {
+        timeout: 20000,
+      },
+    );
 
     return order;
   }
@@ -218,29 +223,34 @@ export class RentalService {
       }
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      if (targetStatus === OrderStatus.CANCELLED) {
-        await this.repository.restoreStock(
-          order.items.map((i) => ({ gearItemId: i.gearItemId, quantity: i.quantity })),
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        if (targetStatus === OrderStatus.CANCELLED) {
+          await this.repository.restoreStock(
+            order.items.map((i) => ({ gearItemId: i.gearItemId, quantity: i.quantity })),
+            tx,
+          );
+        }
+
+        const updatedOrder = await this.repository.updateStatus(orderId, targetStatus, tx);
+
+        await this.repository.writeStatusHistory(
+          {
+            rentalOrderId: orderId,
+            fromStatus: currentStatus,
+            toStatus: targetStatus,
+            changedById: userId,
+            reason: input.reason,
+          },
           tx,
         );
-      }
 
-      const updatedOrder = await this.repository.updateStatus(orderId, targetStatus, tx);
-
-      await this.repository.writeStatusHistory(
-        {
-          rentalOrderId: orderId,
-          fromStatus: currentStatus,
-          toStatus: targetStatus,
-          changedById: userId,
-          reason: input.reason,
-        },
-        tx,
-      );
-
-      return updatedOrder;
-    });
+        return updatedOrder;
+      },
+      {
+        timeout: 20000,
+      },
+    );
 
     return updated;
   }

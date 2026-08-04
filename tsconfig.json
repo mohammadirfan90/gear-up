@@ -2,7 +2,7 @@
   "compilerOptions": {
     /* Language & Emit */
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "nodenext",
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -12,7 +12,7 @@
     "newLine": "lf",
 
     /* Module Resolution */
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -37,16 +37,15 @@
     "allowSyntheticDefaultImports": true,
 
     /* Paths */
-    "baseUrl": "./src",
     "paths": {
-      "@/*": ["*"],
-      "@config/*": ["config/*"],
-      "@constants/*": ["constants/*"],
-      "@middlewares/*": ["middlewares/*"],
-      "@errors/*": ["errors/*"],
-      "@utils/*": ["utils/*"],
-      "@modules/*": ["modules/*"],
-      "@shared/*": ["shared/*"]
+      "@/*": ["./src/*"],
+      "@config/*": ["./src/config/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@middlewares/*": ["./src/middlewares/*"],
+      "@errors/*": ["./src/errors/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src/**/*.ts"],
